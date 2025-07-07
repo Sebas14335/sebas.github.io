@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cubicador de Contenedores y Camiones 3D</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls for Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        /* Custom styles for Inter font and general body styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            /* Background image for trailer race - NEW URL */
+            background-image: url('https://images.unsplash.com/photo-1549429402-990e13c8f8d6?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'); /* Nueva imagen de fondo de camión */
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed; /* Ensures background stays fixed during scroll */
+        }
+        /* Ensure inputs have consistent styling */
+        input[type="number"] {
+            -moz-appearance: textfield; /* Firefox */
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none; /* Chrome, Safari, Edge */
+            margin: 0;
+        }
+
+        /* Styles for the visualization wrapper */
+        #visualizationWrapper {
+            position: relative;
+            background-color: #333; /* Dark background for truck interior */
+            border: 4px solid #555;
+            overflow: hidden; /* Hide overflowing items */
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 700px; /* Max visual width for truck/container */
+            height: 350px; /* Fixed height for visual consistency */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #visualization2D {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            align-content: flex-start;
+            justify-content: flex-start;
+            background-image: url('https://placehold.co/700x350/333333/FFFFFF?text=Area+de+Carga'); /* Placeholder for truck bed */
+            background-size: cover;
+            background-position: center;
+        }
+
+        #visualization3DCanvas {
+            width: 100%;
+            height: 100%;
+            display: block; /* Ensure canvas takes full space */
+        }
+
+        .item-visual {
+            background-color: rgba(100, 149, 237, 0.8); /* Cornflower blue with transparency */
+            border: 1px solid rgba(25, 25, 112, 0.8); /* Midnight blue border */
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            margin: 0px; /* No margin, use padding if needed inside */
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem; /* Smaller text for item labels */
+            color: white;
+            font-weight: bold;
+            overflow: hidden; /* Hide content if item label is too long */
+            position: absolute; /* Absolute positioning for precise placement within the container */
+            transition: all 0.3s ease-out; /* Smooth transitions for placement */
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            border-radius: 8px;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid #3498db; /* Blue */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-4xl border border-gray-200 bg-opacity-90">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-8 text-center">Cubicador de Contenedores y Camiones 3D</h1>
+
+        <!-- Cargo Space Dimensions Section -->
+        <div class="mb-8 p-6 bg-blue-50 rounded-lg shadow-inner border border-blue-200">
+            <h2 class="text-2xl font-bold text-blue-800 mb-6 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2zm3-13H7l1 4h4l1-4h-1V7z" />
+                </svg>
+                Tipo y Dimensiones del Espacio de Carga
+            </h2>
+            <div class="mb-4">
+                <label class="inline-flex items-center mr-4">
+                    <input type="radio" name="cargoType" value="truck" class="form-radio text-blue-600" checked>
+                    <span class="ml-2 text-lg text-gray-700">Camión</span>
+                </label>
+                <label class="inline-flex items-center mr-4">
+                    <input type="radio" name="cargoType" value="20ft" class="form-radio text-blue-600">
+                    <span class="ml-2 text-lg text-gray-700">Contenedor 20 pies</span>
+                </label>
+                <label class="inline-flex items-center">
+                    <input type="radio" name="cargoType" value="40ft" class="form-radio text-blue-600">
+                    <span class="ml-2 text-lg text-gray-700">Contenedor 40 pies</span>
+                </label>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label for="cargoLength" class="block text-lg font-medium text-gray-700 mb-2">Largo (metros)</label>
+                    <input type="number" id="cargoLength" min="0.01" step="0.01" placeholder="Ej: 10.5" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg">
+                </div>
+                <div>
+                    <label for="cargoWidth" class="block text-lg font-medium text-gray-700 mb-2">Ancho (metros)</label>
+                    <input type="number" id="cargoWidth" min="0.01" step="0.01" placeholder="Ej: 2.5" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg">
+                </div>
+                <div>
+                    <label for="cargoHeight" class="block text-lg font-medium text-gray-700 mb-2">Alto (metros)</label>
+                    <input type="number" id="cargoHeight" min="0.01" step="0.01" placeholder="Ej: 3.0" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg">
+                </div>
+            </div>
+        </div>
+
+        <!-- Merchandise Dimensions Section -->
+        <div class="mb-8 p-6 bg-green-50 rounded-lg shadow-inner border border-green-200">
+            <h2 class="text-2xl font-bold text-green-800 mb-6 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                Dimensiones de la Mercadería
+            </h2>
+            <div id="merchandiseInputsContainer">
+                <!-- Initial merchandise input group -->
+                <div class="merchandise-group border-b border-gray-200 pb-6 mb-6 last:border-b-0 last:pb-0 last:mb-0" data-group-index="0">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold text-gray-700">Tipo de Bulto 1</h3>
+                        <button type="button" class="remove-merchandise-btn px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+                            Eliminar este Bulto
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div>
+                            <label for="itemLength_0" class="block text-lg font-medium text-gray-700 mb-2">Largo (metros)</label>
+                            <input type="number" id="itemLength_0" min="0.01" step="0.01" placeholder="Ej: 1.2" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 text-lg">
+                        </div>
+                        <div>
+                            <label for="itemWidth_0" class="block text-lg font-medium text-gray-700 mb-2">Ancho (metros)</label>
+                            <input type="number" id="itemWidth_0" min="0.01" step="0.01" placeholder="Ej: 0.8" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 text-lg">
+                        </div>
+                        <div>
+                            <label for="itemHeight_0" class="block text-lg font-medium text-gray-700 mb-2">Alto (metros)</label>
+                            <input type="number" id="itemHeight_0" min="0.01" step="0.01" placeholder="Ej: 0.6" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 text-lg">
+                        </div>
+                        <div>
+                            <label for="itemQuantity_0" class="block text-lg font-medium text-gray-700 mb-2">Cantidad (Opcional)</label>
+                            <input type="number" id="itemQuantity_0" min="0" step="1" placeholder="Ej: 10 o dejar vacío" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 text-lg">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mt-6">
+                <button id="addMerchandiseBtn" class="px-6 py-3 bg-green-600 text-white font-bold rounded-full shadow-md hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-50 transition transform hover:scale-105">
+                    Agregar Otro Tipo de Mercadería
+                </button>
+            </div>
+        </div>
+
+        <!-- Calculate Button -->
+        <div class="text-center mb-8 relative">
+            <button id="calculateBtn" class="px-8 py-4 bg-purple-600 text-white font-bold text-xl rounded-full shadow-lg hover:bg-purple-700 focus:outline-none focus:ring-4 focus:ring-purple-500 focus:ring-opacity-50 transition transform hover:scale-105">
+                Calcular Cantidad y Visualizar
+            </button>
+            <div id="loadingOverlay" class="loading-overlay hidden">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="p-6 bg-gray-100 rounded-lg shadow-inner border border-gray-300 hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Resultados</h2>
+            <p id="cargoVolumeResult" class="text-lg text-gray-700 mb-2"></p>
+            <p id="totalItemVolumeResult" class="text-lg text-gray-700 mb-2"></p>
+            <p id="fitItemsResult" class="text-3xl font-extrabold text-purple-700 text-center"></p>
+            <div id="suggestedQuantities" class="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200 hidden">
+                <h3 class="text-xl font-bold text-yellow-800 mb-2">Cantidades Sugeridas para Bultos Opcionales:</h3>
+                <ul id="suggestedQuantitiesList" class="list-disc list-inside text-gray-700"></ul>
+            </div>
+            <p id="errorMessage" class="text-red-600 text-center mt-4 hidden"></p>
+
+            <!-- Visualization Area -->
+            <h3 id="visualizationTitle" class="text-xl font-bold text-gray-800 mt-6 mb-4 text-center">Visualización del Espacio de Carga (Vista Superior por Capa)</h3>
+            <div class="flex justify-center items-center mb-4">
+                <button id="prevLayerBtn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed mr-4">
+                    Capa Anterior
+                </button>
+                <span id="currentLayerDisplay" class="text-xl font-bold text-gray-800">Capa 0/0</span>
+                <button id="nextLayerBtn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed ml-4">
+                    Siguiente Capa
+                </button>
+            </div>
+            <div id="containerTransparencyToggle" class="flex justify-center items-center mb-4 hidden">
+                <input type="checkbox" id="transparentContainerCheckbox" class="form-checkbox h-5 w-5 text-blue-600">
+                <label for="transparentContainerCheckbox" class="ml-2 text-lg text-gray-700">Ver Contenedor Transparente</label>
+            </div>
+            <div id="visualizationWrapper" class="relative bg-gray-700 border-4 border-gray-900 rounded-lg overflow-hidden">
+                <!-- This will contain either 2D divs or the Three.js canvas -->
+                <div id="visualization2D" class="absolute inset-0"></div>
+                <canvas id="visualization3DCanvas" class="absolute inset-0 hidden"></canvas>
+            </div>
+            <p class="text-sm text-gray-600 mt-2 text-center">
+                Nota: La visualización es una representación simplificada y no considera la optimización de empaquetado perfecta en 3D.
+            </p>
+
+            <!-- LLM Optimization Suggestions Section -->
+            <div class="text-center mt-8">
+                <button id="getOptimizationSuggestionsBtn" class="px-8 py-4 bg-blue-600 text-white font-bold text-xl rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-50 transition transform hover:scale-105">
+                    Obtener Sugerencias de Empaque ✨
+                </button>
+                <div id="optimizationLoadingOverlay" class="loading-overlay hidden">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+            <div id="optimizationSuggestions" class="mt-4 p-6 bg-blue-50 rounded-lg border border-blue-200 hidden">
+                <h3 class="text-xl font-bold text-blue-800 mb-4 text-center">Sugerencias de Optimización de Empaque</h3>
+                <div id="optimizationSuggestionsContent" class="text-gray-700 prose max-w-none">
+                    <!-- Suggestions will be inserted here -->
+                </div>
+                <p id="optimizationErrorMessage" class="text-red-600 text-center mt-4 hidden"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let merchandiseGroupCounter = 0; // Counter for unique IDs of merchandise groups
+        let allMerchandiseData = []; // Stores all merchandise types and their quantities
+        let truckDimensions = {}; // Stores truck dimensions (now cargo space dimensions)
+        let currentLayer = 0; // Current layer being displayed
+        let maxLayers = 0; // Maximum number of layers possible
+        let packedItemsPerLayer = []; // Stores the layout of items for each layer
+        let minItemHeight = Infinity; // Declared at a higher scope to be accessible
+        let currentCargoType = 'truck'; // Default cargo type
+
+        // Three.js variables
+        let scene, camera, renderer, controls;
+        let containerMesh, itemMeshes = [];
+        let animationFrameId; // To store the requestAnimationFrame ID
+
+        // Predefined container dimensions (Length, Width, Height)
+        const CONTAINER_DIMENSIONS = {
+            '20ft': { length: 5.898, width: 2.352, height: 2.393 },
+            '40ft': { length: 12.032, width: 2.352, height: 2.393 } // Updated to 40ft dimensions
+        };
+
+        // Get DOM elements
+        const cargoTypeRadios = document.querySelectorAll('input[name="cargoType"]');
+        const cargoLengthInput = document.getElementById('cargoLength');
+        const cargoWidthInput = document.getElementById('cargoWidth');
+        const cargoHeightInput = document.getElementById('cargoHeight');
+
+        const merchandiseInputsContainer = document.getElementById('merchandiseInputsContainer');
+        const addMerchandiseBtn = document.getElementById('addMerchandiseBtn');
+        const calculateBtn = document.getElementById('calculateBtn');
+        const resultsDiv = document.getElementById('results');
+        const cargoVolumeResult = document.getElementById('cargoVolumeResult'); // Changed from truckVolumeResult
+        const totalItemVolumeResult = document.getElementById('totalItemVolumeResult');
+        const fitItemsResult = document.getElementById('fitItemsResult');
+        const errorMessage = document.getElementById('errorMessage');
+        const visualizationWrapper = document.getElementById('visualizationWrapper');
+        const visualization2D = document.getElementById('visualization2D');
+        const visualization3DCanvas = document.getElementById('visualization3DCanvas');
+        const visualizationTitle = document.getElementById('visualizationTitle'); // New title element
+        const prevLayerBtn = document.getElementById('prevLayerBtn');
+        const nextLayerBtn = document.getElementById('nextLayerBtn');
+        const currentLayerDisplay = document.getElementById('currentLayerDisplay');
+        const suggestedQuantitiesDiv = document.getElementById('suggestedQuantities');
+        const suggestedQuantitiesList = document.getElementById('suggestedQuantitiesList');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const getOptimizationSuggestionsBtn = document.getElementById('getOptimizationSuggestionsBtn');
+        const optimizationSuggestionsDiv = document.getElementById('optimizationSuggestions');
+        const optimizationSuggestionsContent = document.getElementById('optimizationSuggestionsContent');
+        const optimizationLoadingOverlay = document.getElementById('optimizationLoadingOverlay');
+        const optimizationErrorMessage = document.getElementById('optimizationErrorMessage');
+        const transparentContainerCheckbox = document.getElementById('transparentContainerCheckbox');
+        const containerTransparencyToggle = document.getElementById('containerTransparencyToggle');
+
+
+        // Event Listeners
+        addMerchandiseBtn.addEventListener('click', addMerchandiseInput);
+        calculateBtn.addEventListener('click', calculateCubicaje);
+        prevLayerBtn.addEventListener('click', () => changeLayer(-1));
+        nextLayerBtn.addEventListener('click', () => changeLayer(1));
+        getOptimizationSuggestionsBtn.addEventListener('click', getOptimizationSuggestions);
+        transparentContainerCheckbox.addEventListener('change', toggleContainerTransparency);
+
+        // Event listener for cargo type selection
+        cargoTypeRadios.forEach(radio => {
+            radio.addEventListener('change', (event) => {
+                currentCargoType = event.target.value;
+                if (currentCargoType === 'truck') {
+                    cargoLengthInput.disabled = false;
+                    cargoWidthInput.disabled = false;
+                    cargoHeightInput.disabled = false;
+                    // Clear inputs for manual entry
+                    cargoLengthInput.value = '';
+                    cargoWidthInput.value = '';
+                    cargoHeightInput.value = '';
+                    containerTransparencyToggle.classList.add('hidden'); // Hide transparency option for truck
+                } else {
+                    const dims = CONTAINER_DIMENSIONS[currentCargoType];
+                    cargoLengthInput.value = dims.length;
+                    cargoWidthInput.value = dims.width;
+                    cargoHeightInput.value = dims.height;
+                    cargoLengthInput.disabled = true;
+                    cargoWidthInput.disabled = true;
+                    cargoHeightInput.disabled = true;
+                    containerTransparencyToggle.classList.remove('hidden'); // Show transparency option for containers
+                }
+            });
+        });
+
+        // Add event listener for dynamically added remove buttons
+        merchandiseInputsContainer.addEventListener('click', (event) => {
+            if (event.target.classList.contains('remove-merchandise-btn')) {
+                const groupToRemove = event.target.closest('.merchandise-group');
+                if (groupToRemove) {
+                    removeMerchandiseInput(groupToRemove);
+                }
+            }
+        });
+
+
+        // Function to add a new merchandise input group
+        function addMerchandiseInput() {
+            merchandiseGroupCounter++;
+            const newGroup = document.createElement('div');
+            newGroup.className = 'merchandise-group border-b border-gray-200 pb-6 mb-6 last:border-b-0 last:pb-0 last:mb-0';
+            newGroup.setAttribute('data-group-index', merchandiseGroupCounter); // Assign a unique index
+            newGroup.innerHTML = `
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-gray-700">Tipo de Bulto ${merchandiseGroupCounter + 1}</h3>
+                    <button type="button" class="remove-merchandise-btn px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50">
+                        Eliminar este Bulto
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div>
+                        <label for="itemLength_${merchandiseGroupCounter}" class="block text-lg font-medium text-gray-700 mb-2">Largo (metros)</label>
+                        <input type="number" id="itemLength_${merchandiseGroupCounter}" min="0.01" step="0.01" placeholder="Ej: 1.2" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 text-lg">
+                    </div>
+                    <div>
+                        <label for="itemWidth_${merchandiseGroupCounter}" class="block text-lg font-medium text-gray-700 mb-2">Ancho (metros)</label>
+                        <input type="number" id="itemWidth_${merchandiseGroupCounter}" min="0.01" step="0.01" placeholder="Ej: 0.8" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 text-lg">
+                    </div>
+                    <div>
+                        <label for="itemHeight_${merchandiseGroupCounter}" class="block text-lg font-medium text-gray-700 mb-2">Alto (metros)</label>
+                        <input type="number" id="itemHeight_${merchandiseGroupCounter}" min="0.01" step="0.01" placeholder="Ej: 0.6" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 text-lg">
+                    </div>
+                    <div>
+                        <label for="itemQuantity_${merchandiseGroupCounter}" class="block text-lg font-medium text-gray-700 mb-2">Cantidad (Opcional)</label>
+                        <input type="number" id="itemQuantity_${merchandiseGroupCounter}" min="0" step="1" placeholder="Ej: 10 o dejar vacío" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500 text-lg">
+                    </div>
+                </div>
+            `;
+            merchandiseInputsContainer.appendChild(newGroup);
+            updateMerchandiseGroupTitles(); // Update titles after adding
+        }
+
+        // Function to remove a merchandise input group
+        function removeMerchandiseInput(groupElement) {
+            // Ensure there's at least one merchandise group remaining
+            if (document.querySelectorAll('.merchandise-group').length > 1) {
+                groupElement.remove();
+                updateMerchandiseGroupTitles(); // Re-index and update titles after removal
+            } else {
+                errorMessage.textContent = 'Debe haber al menos un tipo de mercadería.';
+                errorMessage.classList.remove('hidden');
+            }
+        }
+
+        // Function to update the titles and IDs of merchandise groups after add/remove
+        function updateMerchandiseGroupTitles() {
+            const groups = document.querySelectorAll('.merchandise-group');
+            groups.forEach((group, index) => {
+                const titleElement = group.querySelector('h3');
+                titleElement.textContent = `Tipo de Bulto ${index + 1}`;
+                group.setAttribute('data-group-index', index); // Update data-group-index
+
+                // Update input IDs and for attributes
+                group.querySelectorAll('input').forEach(input => {
+                    const oldId = input.id;
+                    const newId = oldId.split('_')[0] + '_' + index;
+                    input.id = newId;
+                    const label = group.querySelector(`label[for="${oldId}"]`);
+                    if (label) {
+                        label.setAttribute('for', newId);
+                    }
+                });
+            });
+            merchandiseGroupCounter = groups.length - 1; // Update counter to reflect current number of groups
+            if (merchandiseGroupCounter < 0) merchandiseGroupCounter = 0; // Ensure it doesn't go below 0
+        }
+
+
+        // Function to get all merchandise data from inputs
+        function getMerchandiseData() {
+            allMerchandiseData = [];
+            let isValid = true;
+            document.querySelectorAll('.merchandise-group').forEach((group, index) => {
+                const length = parseFloat(group.querySelector(`#itemLength_${index}`).value);
+                const width = parseFloat(group.querySelector(`#itemWidth_${index}`).value);
+                const height = parseFloat(group.querySelector(`#itemHeight_${index}`).value);
+                const quantityInput = group.querySelector(`#itemQuantity_${index}`).value;
+                const quantity = quantityInput === '' ? null : parseInt(quantityInput); // Null if optional
+
+                if (isNaN(length) || length <= 0 || isNaN(width) || width <= 0 || isNaN(height) || height <= 0) {
+                    isValid = false;
+                } else if (quantity !== null && (isNaN(quantity) || quantity < 0)) {
+                    isValid = false; // Invalid if quantity is provided but not a valid number
+                } else {
+                    allMerchandiseData.push({
+                        id: `item_${index}`,
+                        length: length,
+                        width: width,
+                        height: height,
+                        quantity: quantity, // Will be null if optional
+                        originalQuantity: quantity, // Keep track of original input
+                        isOptional: quantity === null
+                    });
+                }
+            });
+            return isValid;
+        }
+
+        // Main calculation and visualization function
+        async function calculateCubicaje() {
+            loadingOverlay.classList.remove('hidden'); // Show loading spinner
+            optimizationSuggestionsDiv.classList.add('hidden'); // Hide previous suggestions
+            optimizationSuggestionsContent.innerHTML = '';
+            optimizationErrorMessage.classList.add('hidden');
+
+            // Get cargo space dimensions based on selected type
+            truckDimensions.length = parseFloat(cargoLengthInput.value);
+            truckDimensions.width = parseFloat(cargoWidthInput.value);
+            truckDimensions.height = parseFloat(cargoHeightInput.value);
+
+            // Clear previous results and errors
+            resultsDiv.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+            errorMessage.textContent = '';
+            visualization2D.innerHTML = ''; // Clear previous 2D visual items
+            itemMeshes = []; // Clear 3D meshes
+            if (scene) {
+                // Remove all objects from the scene
+                while(scene.children.length > 0){
+                    const object = scene.children[0];
+                    scene.remove(object);
+                    // Dispose of geometries and materials to free up memory
+                    if (object.isMesh) {
+                        object.geometry.dispose();
+                        if (object.material.isMaterial) {
+                            object.material.dispose();
+                        } else {
+                            // in case of multi-material
+                            for (const material of object.material) material.dispose();
+                        }
+                    }
+                }
+            }
+
+            packedItemsPerLayer = []; // Reset packed items for layers
+            suggestedQuantitiesDiv.classList.add('hidden');
+            suggestedQuantitiesList.innerHTML = '';
+
+            // Input validation for cargo dimensions
+            if (isNaN(truckDimensions.length) || isNaN(truckDimensions.width) || isNaN(truckDimensions.height) ||
+                truckDimensions.length <= 0 || truckDimensions.width <= 0 || truckDimensions.height <= 0) {
+                errorMessage.textContent = 'Por favor, ingrese valores numéricos positivos para todas las dimensiones del espacio de carga.';
+                errorMessage.classList.remove('hidden');
+                loadingOverlay.classList.add('hidden');
+                return;
+            }
+
+            // Get merchandise data and validate
+            if (!getMerchandiseData()) {
+                errorMessage.textContent = 'Por favor, ingrese valores numéricos positivos para todas las dimensiones de la mercadería. Las cantidades opcionales pueden dejarse vacías o ser 0 o más.';
+                errorMessage.classList.remove('hidden');
+                loadingOverlay.classList.add('hidden');
+                return;
+            }
+
+            if (allMerchandiseData.length === 0) {
+                errorMessage.textContent = 'Por favor, agregue al menos un tipo de mercadería.';
+                errorMessage.classList.remove('hidden');
+                loadingOverlay.classList.add('hidden');
+                return;
+            }
+
+            // Separate mandatory and optional items
+            let mandatoryItems = allMerchandiseData.filter(item => !item.isOptional);
+            let optionalItems = allMerchandiseData.filter(item => item.isOptional);
+
+            // Calculate cargo volume
+            const cargoVolume = truckDimensions.length * truckDimensions.width * truckDimensions.height;
+            cargoVolumeResult.textContent = `Volumen del Espacio de Carga: ${cargoVolume.toFixed(2)} m³`;
+
+            let totalMandatoryVolume = 0;
+            mandatoryItems.forEach(item => {
+                totalMandatoryVolume += item.length * item.width * item.height * item.quantity;
+            });
+
+            // Determine minItemHeight from all items (mandatory and optional)
+            minItemHeight = Infinity;
+            allMerchandiseData.forEach(item => {
+                if (item.height > 0 && item.height < minItemHeight) { // Only consider items with positive height
+                    minItemHeight = item.height;
+                }
+            });
+            if (minItemHeight === Infinity) minItemHeight = 0.1; // Fallback if no items or all items have 0 height
+
+            // Calculate max layers based on cargo height and smallest item height
+            maxLayers = minItemHeight > 0 ? Math.floor(truckDimensions.height / minItemHeight) : 0;
+            if (maxLayers === 0 && truckDimensions.height > 0) {
+                maxLayers = 1;
+            } else if (truckDimensions.height === 0) {
+                maxLayers = 0;
+            }
+
+            // --- Packing Mandatory Items ---
+            // Reset quantities for packing simulation (only for mandatory items for now)
+            mandatoryItems.forEach(item => item.quantity = item.originalQuantity);
+            packedItemsPerLayer = []; // Reset global packed items
+
+            // This simulateLayeredPacking will now return remaining space and packed items
+            let { remainingVolume, packedItemsCount } = simulateLayeredPacking(mandatoryItems);
+
+            let totalPackedItems = packedItemsCount;
+            let totalPackedVolume = cargoVolume - remainingVolume;
+
+            // --- Suggesting Quantities for Optional Items using LLM ---
+            if (optionalItems.length > 0 && remainingVolume > 0) {
+                const promptParts = [];
+                promptParts.push(`Dado un espacio de carga con dimensiones ${truckDimensions.length}m (Largo) x ${truckDimensions.width}m (Ancho) x ${truckDimensions.height}m (Alto).`);
+                promptParts.push(`Hemos empacado los siguientes artículos obligatorios:`);
+                if (mandatoryItems.length > 0) {
+                    mandatoryItems.forEach(item => {
+                        promptParts.push(`- Tipo ${item.id.replace('item_', '')}: ${item.length}m x ${item.width}m x ${item.height}m, Cantidad: ${item.originalQuantity} unidades.`);
+                    });
+                } else {
+                    promptParts.push(`(Ningún artículo obligatorio empacado).`);
+                }
+                promptParts.push(`El volumen restante disponible en el espacio de carga es aproximadamente ${remainingVolume.toFixed(2)} m³.`);
+                promptParts.push(`Tenemos los siguientes tipos de mercadería opcionales, para los cuales necesitamos sugerir cantidades para maximizar el uso del espacio restante:`);
+                optionalItems.forEach(item => {
+                    promptParts.push(`- Tipo ${item.id.replace('item_', '')}: ${item.length}m x ${item.width}m x ${item.height}m (Volumen por unidad: ${(item.length * item.width * item.height).toFixed(2)} m³).`);
+                });
+                promptParts.push(`Por favor, sugiera una cantidad razonable para cada tipo de mercadería opcional para llenar el espacio restante, considerando sus dimensiones y las dimensiones restantes del espacio de carga. Proporciona la salida como una matriz JSON de objetos, donde cada objeto tiene 'id' (que coincide con el id del artículo, por ejemplo, 'item_0', 'item_1') y 'suggestedQuantity' (un número entero).`);
+
+                const prompt = promptParts.join('\n');
+
+                try {
+                    const payload = {
+                        contents: [{ role: "user", parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        "id": { "type": "STRING" },
+                                        "suggestedQuantity": { "type": "NUMBER" }
+                                    },
+                                    "propertyOrdering": ["id", "suggestedQuantity"]
+                                }
+                            }
+                        }
+                    };
+                    const apiKey = ""; // Canvas will provide this at runtime
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+                    console.log("LLM Raw Response:", result); // Log raw response for debugging
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const json = result.candidates[0].content.parts[0].text;
+                        try {
+                            const parsedSuggestions = JSON.parse(json);
+                            suggestedQuantitiesList.innerHTML = '';
+                            suggestedQuantitiesDiv.classList.remove('hidden');
+
+                            parsedSuggestions.forEach(suggestion => {
+                                const item = optionalItems.find(opt => opt.id === suggestion.id);
+                                if (item) {
+                                    // Clamp suggested quantity to be non-negative
+                                    item.quantity = Math.max(0, Math.floor(suggestion.suggestedQuantity));
+                                    const listItem = document.createElement('li');
+                                    listItem.textContent = `Tipo de Bulto ${item.id.replace('item_', '')}: ${item.quantity} unidades`;
+                                    suggestedQuantitiesList.appendChild(listItem);
+                                    totalPackedItems += item.quantity;
+                                    totalPackedVolume += item.length * item.width * item.height * item.quantity;
+                                }
+                            });
+
+                            // Now, pack the optional items with their suggested quantities
+                            // This will append to the existing packedItemsPerLayer
+                            simulateLayeredPacking(optionalItems, true); // Pass true to append to existing layers
+                        } catch (parseError) {
+                            console.error("Error parsing LLM JSON response:", parseError);
+                            errorMessage.textContent = 'La IA devolvió un formato inesperado para las sugerencias. Intente de nuevo.';
+                            errorMessage.classList.remove('hidden');
+                        }
+
+                    } else {
+                        console.error("LLM response structure unexpected or empty:", result);
+                        errorMessage.textContent = 'No se pudieron generar sugerencias de cantidad para la mercadería opcional. La IA no devolvió datos válidos. Intente de nuevo.';
+                        errorMessage.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error("Error calling LLM API:", error);
+                    errorMessage.textContent = 'Error al comunicarse con la IA para sugerir cantidades. Verifique su conexión o intente de nuevo.';
+                    errorMessage.classList.remove('hidden');
+                }
+            }
+
+            totalItemVolumeResult.textContent = `Volumen Total de Mercadería Empacada: ${totalPackedVolume.toFixed(2)} m³`;
+            fitItemsResult.textContent = `Total de Mercadería Empacada: ${totalPackedItems} unidades`;
+
+
+            // Set initial layer to display
+            currentLayer = 1;
+            if (packedItemsPerLayer.length > 0) {
+                maxLayers = packedItemsPerLayer.length;
+                renderVisualization(currentLayer); // Call the unified render function
+                resultsDiv.classList.remove('hidden');
+            } else {
+                errorMessage.textContent = 'No se pudo ubicar ninguna mercadería en el espacio de carga con las dimensiones dadas.';
+                errorMessage.classList.remove('hidden');
+            }
+            loadingOverlay.classList.add('hidden'); // Hide loading spinner
+        }
+
+        /**
+         * Simulates packing items into layers using a 2D bin packing heuristic.
+         * This function attempts to fill each layer as efficiently as possible.
+         * @param {Array} itemsToPack - Array of item objects to pack. Each item has id, length, width, height, quantity.
+         * @param {boolean} appendMode - If true, appends to existing packedItemsPerLayer; otherwise, clears it.
+         * @returns {{remainingVolume: number, packedItemsCount: number}} - Remaining volume and total items packed.
+         */
+        function simulateLayeredPacking(itemsToPack, appendMode = false) {
+            if (!appendMode) {
+                packedItemsPerLayer = [];
+            }
+
+            let currentTruckVolumeUsed = 0;
+            let totalPackedItemsCount = 0;
+
+            // Deep copy itemsToPack to avoid modifying original quantities during simulation
+            let itemsRemainingToPack = itemsToPack.map(item => ({ ...item, quantity: item.quantity || 0 })); // Ensure quantity is 0 if null
+
+            // Sort items by decreasing area (length * width) for better packing efficiency
+            itemsRemainingToPack.sort((a, b) => (b.length * b.width) - (a.length * a.width));
+
+            // Loop through potential layers
+            for (let layerIdx = 0; layerIdx < maxLayers; layerIdx++) {
+                // If appending, ensure the layer exists or create it
+                if (!packedItemsPerLayer[layerIdx]) {
+                    packedItemsPerLayer[layerIdx] = [];
+                }
+                const currentLayerItems = packedItemsPerLayer[layerIdx];
+
+                // Initialize free spaces for the current layer
+                let freeSpaces = [];
+                if (appendMode && currentLayerItems.length > 0) {
+                    // When appending, we need to consider the voids left by previous items.
+                    // This is a simplified void management. A more robust solution would
+                    // involve more complex data structures for free spaces.
+                    // For now, we'll just add a new "shelf" if the current row is full,
+                    // or extend the last space if there's room.
+                    let maxX = 0;
+                    let maxY = 0;
+                    currentLayerItems.forEach(item => {
+                        maxX = Math.max(maxX, item.x + (item.orientation === 'LW' ? item.length : item.width));
+                        maxY = Math.max(maxY, item.y + (item.orientation === 'LW' ? item.width : item.length));
+                    });
+
+                    // If the previous items filled the entire row, start a new row.
+                    if (maxX >= truckDimensions.length - 0.001) { // Use a small epsilon for float comparison
+                        freeSpaces.push({ x: 0, y: maxY, width: truckDimensions.length, height: truckDimensions.width - maxY });
+                    } else {
+                        // Otherwise, add the remaining space in the current row and a new row below
+                        freeSpaces.push({ x: maxX, y: 0, width: truckDimensions.length - maxX, height: truckDimensions.width });
+                        freeSpaces.push({ x: 0, y: maxY, width: truckDimensions.length, height: truckDimensions.width - maxY });
+                    }
+                } else {
+                    // For a new layer, the entire truck bed is free
+                    freeSpaces.push({ x: 0, y: 0, width: truckDimensions.length, height: truckDimensions.width });
+                }
+
+                // Process items for this layer
+                let placedInThisLayer = true;
+                while (placedInThisLayer && itemsRemainingToPack.some(item => item.quantity > 0)) {
+                    placedInThisLayer = false; // Assume no item will be placed in this iteration
+
+                    // Find the best item to place and the best free space for it
+                    let bestItemIndex = -1;
+                    let bestSpaceIndex = -1;
+                    let bestOrientation = '';
+                    let bestFitScore = Infinity; // Lower score is better (e.g., less wasted space)
+
+                    for (let i = 0; i < itemsRemainingToPack.length; i++) {
+                        let item = itemsRemainingToPack[i];
+                        if (item.quantity === 0 || item.height > truckDimensions.height - (layerIdx * minItemHeight)) {
+                            continue; // Skip if no quantity or doesn't fit vertically in this layer
+                        }
+
+                        for (let s = 0; s < freeSpaces.length; s++) {
+                            let space = freeSpaces[s];
+
+                            // Try original orientation (L x W)
+                            if (item.length <= space.width && item.width <= space.height) {
+                                // Calculate a simple fit score (e.g., remaining area in space)
+                                let currentFitScore = (space.width * space.height) - (item.length * item.width);
+                                if (currentFitScore < bestFitScore) {
+                                    bestFitScore = currentFitScore;
+                                    bestItemIndex = i;
+                                    bestSpaceIndex = s;
+                                    bestOrientation = 'LW';
+                                }
+                            }
+
+                            // Try rotated orientation (W x L)
+                            if (item.width <= space.width && item.length <= space.height) {
+                                let currentFitScore = (space.width * space.height) - (item.width * item.length);
+                                if (currentFitScore < bestFitScore) {
+                                    bestFitScore = currentFitScore;
+                                    bestItemIndex = i;
+                                    bestSpaceIndex = s;
+                                    bestOrientation = 'WL';
+                                }
+                            }
+                        }
+                    }
+
+                    if (bestItemIndex !== -1) {
+                        // Place the best fitting item
+                        let item = itemsRemainingToPack[bestItemIndex];
+                        let space = freeSpaces[bestSpaceIndex];
+                        let placedLength = (bestOrientation === 'LW') ? item.length : item.width;
+                        let placedWidth = (bestOrientation === 'LW') ? item.width : item.length;
+
+                        currentLayerItems.push({
+                            ...item,
+                            x: space.x,
+                            y: space.y,
+                            z: layerIdx * minItemHeight, // Z-coordinate for 3D visualization
+                            orientation: bestOrientation,
+                            placedLength: placedLength, // Store actual dimensions used for visual
+                            placedWidth: placedWidth
+                        });
+
+                        item.quantity--; // Decrement quantity of the placed item
+                        totalPackedItemsCount++;
+                        currentTruckVolumeUsed += (item.length * item.width * item.height);
+                        placedInThisLayer = true; // An item was placed
+
+                        // Update free spaces by splitting the used space
+                        const newFreeSpaces = [];
+                        // Add remaining space to the right
+                        if (space.x + placedLength < space.x + space.width) {
+                            newFreeSpaces.push({
+                                x: space.x + placedLength,
+                                y: space.y,
+                                width: space.width - placedLength,
+                                height: placedWidth
+                            });
+                        }
+                        // Add remaining space above
+                        if (space.y + placedWidth < space.y + space.height) {
+                            newFreeSpaces.push({
+                                x: space.x,
+                                y: space.y + placedWidth,
+                                width: space.width,
+                                height: space.height - placedWidth
+                            });
+                        }
+                        // Remove the old space and add new ones
+                        freeSpaces.splice(bestSpaceIndex, 1);
+                        freeSpaces.push(...newFreeSpaces);
+
+                        // Merge overlapping or adjacent free spaces to keep the list clean
+                        freeSpaces = mergeFreeSpaces(freeSpaces);
+                    }
+                }
+                // If no items were placed in this layer, and it's not the first layer, stop
+                if (currentLayerItems.length === 0 && layerIdx > 0) {
+                    break;
+                }
+            }
+
+            // Update maxLayers based on actual packed layers
+            maxLayers = packedItemsPerLayer.length;
+
+            // Calculate remaining volume
+            const cargoVolume = truckDimensions.length * truckDimensions.width * truckDimensions.height;
+            const remainingVolume = cargoVolume - currentTruckVolumeUsed;
+
+            return { remainingVolume, packedItemsCount: totalPackedItemsCount };
+        }
+
+        /**
+         * Merges adjacent or overlapping free spaces.
+         * This is a simplified merge, a full bin packing algorithm would need more robust void management.
+         * @param {Array} spaces - Array of free space objects {x, y, width, height}.
+         * @returns {Array} - Merged free spaces.
+         */
+        function mergeFreeSpaces(spaces) {
+            // Sort spaces to help with merging (e.g., by y then x)
+            spaces.sort((a, b) => a.y - b.y || a.x - b.x);
+
+            const merged = [];
+            if (spaces.length === 0) return merged;
+
+            let current = { ...spaces[0] };
+            for (let i = 1; i < spaces.length; i++) {
+                let next = spaces[i];
+
+                // Check for horizontal merge (same y, adjacent/overlapping x, same height)
+                if (current.y === next.y && current.height === next.height &&
+                    (current.x + current.width >= next.x && current.x <= next.x + next.width)) {
+                    current.x = Math.min(current.x, next.x);
+                    current.width = Math.max(current.x + current.width, next.x + next.width) - current.x;
+                }
+                // Check for vertical merge (same x, adjacent/overlapping y, same width)
+                else if (current.x === next.x && current.width === next.width &&
+                    (current.y + current.height >= next.y && current.y <= next.y + next.height)) {
+                    current.y = Math.min(current.y, next.y);
+                    current.height = Math.max(current.y + current.height, next.y + next.height) - current.y;
+                }
+                else {
+                    merged.push(current);
+                    current = { ...next };
+                }
+            }
+            merged.push(current);
+
+            return merged;
+        }
+
+        // Unified render function (2D or 3D)
+        function renderVisualization(layerIndex) {
+            if (currentCargoType === 'truck') {
+                visualizationTitle.textContent = 'Visualización del Camión (Vista Superior por Capa)';
+                containerTransparencyToggle.classList.add('hidden'); // Hide transparency option for truck
+                visualization2D.style.display = 'flex';
+                visualization3DCanvas.style.display = 'none';
+                render2DVisualization(layerIndex);
+            } else {
+                visualizationTitle.textContent = 'Visualización del Contenedor (3D)';
+                containerTransparencyToggle.classList.remove('hidden'); // Show transparency option for containers
+                visualization2D.style.display = 'none';
+                visualization3DCanvas.style.display = 'block';
+                render3DVisualization(layerIndex);
+            }
+        }
+
+
+        // Function to render the truck visualization for a specific layer (2D)
+        function render2DVisualization(layerIndex) {
+            visualization2D.innerHTML = ''; // Clear previous items
+            if (layerIndex < 1 || layerIndex > maxLayers) {
+                currentLayerDisplay.textContent = `Capa 0/0`; // Display 0/0 if no layers
+                prevLayerBtn.disabled = true;
+                nextLayerBtn.disabled = true;
+                return;
+            }
+
+            currentLayerDisplay.textContent = `Capa ${layerIndex}/${maxLayers}`;
+            prevLayerBtn.disabled = (layerIndex === 1);
+            nextLayerBtn.disabled = (layerIndex === maxLayers);
+
+            // Dynamic sizing of the 2D visualization container
+            const maxVisualDimensionPx = 600; // Max pixels for the largest truck dimension (length or width)
+            const scaleFactor = Math.min(
+                maxVisualDimensionPx / truckDimensions.length,
+                maxVisualDimensionPx / truckDimensions.width
+            );
+
+            const visualCargoLengthPx = truckDimensions.length * scaleFactor;
+            const visualCargoWidthPx = truckDimensions.width * scaleFactor;
+
+            visualization2D.style.width = `${visualCargoLengthPx}px`;
+            visualization2D.style.height = `${visualCargoWidthPx}px`;
+            visualizationWrapper.style.width = `${visualCargoLengthPx}px`;
+            visualizationWrapper.style.height = `${visualCargoWidthPx}px`;
+
+
+            const itemsInThisLayer = packedItemsPerLayer[layerIndex - 1] || [];
+
+            itemsInThisLayer.forEach((item, idx) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'item-visual';
+
+                // Use placedLength and placedWidth from the packing algorithm
+                const visualItemLength = item.placedLength * scaleFactor;
+                const visualItemWidth = item.placedWidth * scaleFactor;
+
+                itemDiv.style.width = `${visualItemLength}px`;
+                itemDiv.style.height = `${visualItemWidth}px`;
+                itemDiv.style.left = `${item.x * scaleFactor}px`;
+                itemDiv.style.top = `${item.y * scaleFactor}px`;
+                itemDiv.textContent = `Bulto ${item.id.split('_')[1] * 1 + 1} (${item.orientation})`; // Label with type and orientation
+
+                visualization2D.appendChild(itemDiv);
+            });
+        }
+
+        // Function to render the container visualization in 3D
+        function render3DVisualization(layerIndex) {
+            // Initialize Three.js scene if not already done
+            if (!scene) {
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(75, visualization3DCanvas.clientWidth / visualization3DCanvas.clientHeight, 0.1, 1000);
+                renderer = new THREE.WebGLRenderer({ canvas: visualization3DCanvas, antialias: true });
+                renderer.setSize(visualization3DCanvas.clientWidth, visualization3DCanvas.clientHeight);
+                renderer.setClearColor(0x333333); // Dark background for the scene
+
+                // Correctly instantiate OrbitControls
+                // Ensure THREE.OrbitControls is available. If not, check global scope.
+                if (typeof THREE.OrbitControls === 'undefined' && typeof OrbitControls !== 'undefined') {
+                    THREE.OrbitControls = OrbitControls;
+                    console.warn("OrbitControls was found globally and assigned to THREE.OrbitControls.");
+                }
+
+                if (typeof THREE.OrbitControls === 'undefined') {
+                    console.error("Error: THREE.OrbitControls is still not defined after attempting to load. Cannot initialize 3D controls.");
+                    // Optionally, fallback to 2D or display a user-friendly error message
+                    return;
+                }
+
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true; // an animation loop is required when damping is enabled
+                controls.dampingFactor = 0.25;
+                controls.screenSpacePanning = false;
+                controls.minDistance = 0.5; // Allow closer zoom
+                controls.maxDistance = 50;
+                controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below the ground
+
+                // Add ambient light
+                const ambientLight = new THREE.AmbientLight(0x404040);
+                scene.add(ambientLight);
+
+                // Add directional light
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(1, 1, 1).normalize();
+                scene.add(directionalLight);
+
+                // Add AxesHelper for debugging
+                const axesHelper = new THREE.AxesHelper(Math.max(truckDimensions.length, truckDimensions.width, truckDimensions.height) * 0.5); // Size proportional to container
+                axesHelper.position.set(0,0,0); // Position at the origin of the container
+                scene.add(axesHelper);
+
+                // Animation loop
+                const animate = () => {
+                    animationFrameId = requestAnimationFrame(animate); // Store the ID
+                    if (controls) controls.update(); // only required if controls.enableDamping is set to true
+                    if (renderer && scene && camera) renderer.render(scene, camera);
+                };
+                // Only start the animation loop if it's not already running
+                if (!animationFrameId) {
+                    animate();
+                }
+
+                // Handle window resize for 3D canvas
+                window.addEventListener('resize', onWindowResize3D, false);
+            }
+
+            // Clear existing items and container from the scene
+            itemMeshes.forEach(mesh => scene.remove(mesh));
+            itemMeshes = [];
+            if (containerMesh) {
+                scene.remove(containerMesh);
+            }
+
+            // Create the container mesh (truck bed)
+            const containerGeometry = new THREE.BoxGeometry(truckDimensions.length, truckDimensions.height, truckDimensions.width);
+            const containerMaterial = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: transparentContainerCheckbox.checked ? 0.2 : 1.0, side: THREE.BackSide });
+            containerMesh = new THREE.Mesh(containerGeometry, containerMaterial);
+            // Position the container so its bottom-left-front corner is at (0,0,0) in our coordinate system
+            containerMesh.position.set(truckDimensions.length / 2, truckDimensions.height / 2, truckDimensions.width / 2);
+            scene.add(containerMesh);
+
+            // Add edges to the container for better visibility
+            const edges = new THREE.EdgesGeometry(containerGeometry);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xaaaaaa }));
+            line.position.copy(containerMesh.position);
+            scene.add(line);
+
+
+            // Add items to the scene for the current layer and all layers below it
+            console.log(`Rendering layer ${layerIndex}. Total packed layers: ${packedItemsPerLayer.length}`);
+            for (let i = 0; i < layerIndex; i++) {
+                const itemsInCurrent3DLayer = packedItemsPerLayer[i] || [];
+                console.log(`Layer ${i}: ${itemsInCurrent3DLayer.length} items.`);
+                itemsInCurrent3DLayer.forEach((item, itemIdx) => {
+                    const itemGeometry = new THREE.BoxGeometry(item.placedLength, item.height, item.placedWidth);
+                    const itemMaterial = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff }); // Random color for each item
+                    const itemMesh = new THREE.Mesh(itemGeometry, itemMaterial);
+
+                    // Position item: (x, y) are from 2D packing, z is based on layer and item height
+                    // Three.js origin is at the center of the object. Our packing origin is bottom-left.
+                    // So, adjust positions:
+                    itemMesh.position.set(
+                        item.x + item.placedLength / 2, // X center
+                        item.z + item.height / 2,       // Y center (height in Three.js is Y-axis)
+                        item.y + item.placedWidth / 2   // Z center (depth in Three.js is Z-axis)
+                    );
+                    scene.add(itemMesh);
+                    itemMeshes.push(itemMesh);
+                    console.log(`  Added item ${item.id} at (${itemMesh.position.x.toFixed(2)}, ${itemMesh.position.y.toFixed(2)}, ${itemMesh.position.z.toFixed(2)})`);
+                });
+            }
+
+            // Set camera position to view the container
+            camera.position.set(truckDimensions.length * 1.5, truckDimensions.height * 1.5, truckDimensions.width * 1.5);
+            camera.lookAt(new THREE.Vector3(truckDimensions.length / 2, truckDimensions.height / 2, truckDimensions.width / 2));
+            controls.target.set(truckDimensions.length / 2, truckDimensions.height / 2, truckDimensions.width / 2);
+            controls.update();
+            renderer.render(scene, camera); // Force render after updating scene
+        }
+
+        function onWindowResize3D() {
+            camera.aspect = visualization3DCanvas.clientWidth / visualization3DCanvas.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(visualization3DCanvas.clientWidth, visualization3DCanvas.clientHeight);
+        }
+
+        // Function to toggle container transparency
+        function toggleContainerTransparency() {
+            if (containerMesh) {
+                containerMesh.material.opacity = transparentContainerCheckbox.checked ? 0.2 : 1.0;
+                containerMesh.material.needsUpdate = true;
+            }
+        }
+
+        // Function to change the displayed layer
+        function changeLayer(delta) {
+            currentLayer += delta;
+            if (currentLayer < 1) currentLayer = 1;
+            if (currentLayer > maxLayers) currentLayer = maxLayers;
+            renderVisualization(currentLayer);
+        }
+
+        // Function to get optimization suggestions from LLM
+        async function getOptimizationSuggestions() {
+            optimizationLoadingOverlay.classList.remove('hidden');
+            optimizationSuggestionsDiv.classList.add('hidden');
+            optimizationSuggestionsContent.innerHTML = '';
+            optimizationErrorMessage.classList.add('hidden');
+
+            if (packedItemsPerLayer.length === 0) {
+                optimizationErrorMessage.textContent = 'No hay mercadería empacada para generar sugerencias de optimización.';
+                optimizationErrorMessage.classList.remove('hidden');
+                optimizationLoadingOverlay.classList.add('hidden');
+                return;
+            }
+
+            const promptParts = [];
+            promptParts.push(`Eres un experto en logística y optimización de empaque. Tengo un espacio de carga con dimensiones ${truckDimensions.length}m (Largo) x ${truckDimensions.width}m (Ancho) x ${truckDimensions.height}m (Alto).`);
+            promptParts.push(`He simulado el empaque de varios tipos de mercadería en ${maxLayers} capas.`);
+            promptParts.push(`Aquí está el diseño de empaque actual para cada capa (vista superior):`);
+
+            packedItemsPerLayer.forEach((layer, layerIndex) => {
+                promptParts.push(`\n- Capa ${layerIndex + 1}:`);
+                if (layer.length === 0) {
+                    promptParts.push(`  (Capa vacía)`);
+                } else {
+                    layer.forEach(item => {
+                        promptParts.push(`  - Bulto ${item.id.replace('item_', '')}: Dimensiones ${item.length}m (L) x ${item.width}m (A) x ${item.height}m (Al), Ubicado en (X:${item.x.toFixed(2)}m, Y:${item.y.toFixed(2)}m) con orientación ${item.orientation}.`);
+                    });
+                }
+            });
+
+            promptParts.push(`\nPor favor, analiza este arreglo de empaque y proporciona sugerencias específicas y accionables para optimizar aún más la distribución de los artículos dentro del espacio de carga para maximizar la utilización del espacio. Considera si algún artículo podría ser reorganizado, rotado de manera diferente, o si hay ineficiencias obvias. Concéntrate en el diseño 2D dentro de cada capa. Proporciona tus sugerencias como una lista con viñetas.`);
+            promptParts.push(`Responde en español.`);
+
+
+            const prompt = promptParts.join('\n');
+
+            try {
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    // No responseSchema needed as we expect a free-form text response
+                };
+                const apiKey = ""; // Canvas will provide this at runtime
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                console.log("LLM Raw Response for Optimization Suggestions:", result); // Log raw response for debugging
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const suggestionsText = result.candidates[0].content.parts[0].text;
+                    optimizationSuggestionsContent.innerHTML = suggestionsText.replace(/\n/g, '<br>'); // Display as HTML with line breaks
+                    optimizationSuggestionsDiv.classList.remove('hidden');
+                } else {
+                    console.error("LLM response structure unexpected or empty for Optimization Suggestions:", result);
+                    optimizationErrorMessage.textContent = 'No se pudieron generar sugerencias de optimización. La IA no devolvió datos válidos. Intente de nuevo.';
+                    optimizationErrorMessage.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Error calling LLM API for optimization:", error);
+                optimizationErrorMessage.textContent = 'Error al comunicarse con la IA para sugerir optimizaciones. Verifique su conexión o intente de nuevo.';
+                optimizationErrorMessage.classList.remove('hidden');
+            } finally {
+                optimizationLoadingOverlay.classList.add('hidden'); // Hide loading spinner
+            }
+        }
+
+
+        // Adjust visualization container size on window resize
+        window.addEventListener('resize', () => {
+            // Re-run calculation if results are already visible to adjust visual items
+            if (!resultsDiv.classList.contains('hidden')) {
+                calculateCubicaje(); // This will re-calculate and re-render
+            }
+        });
+
+        // Initial setup on load
+        window.onload = () => {
+            // Add a default merchandise input if none exists (for initial load)
+            if (merchandiseInputsContainer.children.length === 0) {
+                addMerchandiseInput();
+            }
+            // If inputs have values (e.g., from browser autofill), run calculation
+            if (cargoLengthInput.value && document.getElementById('itemLength_0').value) {
+                calculateCubicaje();
+            }
+        };
+    </script>
+</body>
+</html>
