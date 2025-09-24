@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Seguimiento de Contenedores Perú</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(120deg, #0f172a 0%, #1e293b 45%, #0369a1 100%);
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            backdrop-filter: blur(16px);
+            background: rgba(15, 23, 42, 0.65);
+        }
+
+        .fade-in {
+            animation: fadeIn 0.35s ease-in forwards;
+            opacity: 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="text-slate-100">
+    <header class="px-6 py-10">
+        <div class="max-w-6xl mx-auto glass-panel rounded-3xl px-10 py-12 shadow-2xl border border-white/10">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-10">
+                <div class="space-y-4 max-w-3xl">
+                    <span class="inline-flex items-center gap-2 text-sky-200 text-sm uppercase tracking-[0.3em]">
+                        <span class="h-px w-10 bg-sky-200/70"></span>
+                        Logística inteligente
+                    </span>
+                    <h1 class="text-4xl lg:text-5xl font-black leading-tight text-white">
+                        Seguimiento centralizado de contenedores para navieras que operan en el Perú
+                    </h1>
+                    <p class="text-lg text-slate-200/90">
+                        Consulta un número de contenedor y obtén, en un solo tablero, las respuestas de las principales navieras que atienden el puerto del Callao y terminales peruanos. Integra los servicios reales de cada naviera reemplazando los endpoints de ejemplo por tus credenciales oficiales.
+                    </p>
+                </div>
+                <div class="glass-panel border border-white/10 rounded-2xl px-6 py-6 w-full max-w-sm">
+                    <p class="text-sm uppercase tracking-[0.3em] text-sky-200 mb-4">Navieras incluidas</p>
+                    <ul class="space-y-3 text-base text-slate-100/90">
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> MSC Perú</li>
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-sky-400"></span> Maersk Perú</li>
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-orange-400"></span> CMA CGM</li>
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-fuchsia-400"></span> Hapag-Lloyd</li>
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-lime-400"></span> COSCO Shipping Lines</li>
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Evergreen Marine</li>
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Seaboard Marine</li>
+                        <li class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-rose-400"></span> Hamburg Süd</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="px-6 pb-16 -mt-10">
+        <div class="max-w-6xl mx-auto grid lg:grid-cols-5 gap-8">
+            <section class="lg:col-span-2 glass-panel rounded-3xl border border-white/10 px-8 py-8 shadow-xl">
+                <h2 class="text-2xl font-semibold text-white mb-6">1. Datos del contenedor</h2>
+                <form id="trackerForm" class="space-y-6">
+                    <div>
+                        <label for="containerNumber" class="block text-sm font-medium text-sky-200 uppercase tracking-[0.3em]">Número de contenedor</label>
+                        <input id="containerNumber" name="containerNumber" type="text" placeholder="Ej. MSCU1234567" class="mt-3 w-full rounded-xl border border-sky-500/50 bg-slate-950/40 px-4 py-3 text-base text-white placeholder:text-slate-400 focus:border-emerald-400 focus:ring-emerald-400 focus:outline-none" required />
+                        <p class="mt-2 text-xs text-slate-300/70">Formato ISO: 4 letras + 7 dígitos. Ejemplo válido: MSKU1234567</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-[0.3em] text-sky-200">Modo de consulta</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggleMock" class="sr-only peer" checked />
+                                <div class="w-14 h-7 bg-slate-700 rounded-full peer peer-checked:bg-emerald-500 transition"></div>
+                                <div class="absolute left-1 top-1 w-5 h-5 bg-white rounded-full transition peer-checked:translate-x-7"></div>
+                            </label>
+                        </div>
+                        <p class="text-xs text-slate-300/70">Activa el modo "Integración real" cuando cuentes con endpoints oficiales y credenciales. Con el modo actual se utilizan datos demostrativos para validar el flujo.</p>
+                    </div>
+
+                    <button type="submit" class="w-full rounded-xl bg-emerald-500 px-4 py-3 text-base font-semibold text-slate-900 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-300 focus:ring-offset-slate-900 transition">Consultar navieras</button>
+
+                    <div id="formFeedback" class="hidden rounded-xl border border-rose-400/60 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"></div>
+                </form>
+
+                <div class="mt-10 text-sm text-slate-200/80 space-y-3">
+                    <h3 class="text-base font-semibold text-white">¿Cómo habilitar la conexión real?</h3>
+                    <ol class="list-decimal list-inside space-y-2">
+                        <li>Solicita a cada naviera su API de tracking (MSC, Maersk, CMA CGM, etc.).</li>
+                        <li>Configura un servicio backend (Node/Express, Python, etc.) que normalice las respuestas y oculte las credenciales.</li>
+                        <li>Actualiza la variable <code class="bg-slate-800/70 px-1.5 py-0.5 rounded text-emerald-300">shippingLines</code> con los endpoints de tu servicio.</li>
+                    </ol>
+                </div>
+            </section>
+
+            <section class="lg:col-span-3 glass-panel rounded-3xl border border-white/10 px-8 py-8 shadow-xl">
+                <div class="flex flex-col gap-3 mb-8">
+                    <h2 class="text-2xl font-semibold text-white">2. Resumen de respuestas</h2>
+                    <p class="text-sm text-slate-300/80">Aquí verás el estado y fecha estimada de arribo (ETA) reportada por cada naviera conectada. Al activar el modo real se realizarán solicitudes HTTP en paralelo y se mostrará el detalle de la respuesta o del error.</p>
+                </div>
+
+                <div id="resultsContainer" class="grid gap-4"></div>
+            </section>
+        </div>
+    </main>
+
+    <template id="resultCardTemplate">
+        <article class="fade-in rounded-2xl border border-white/10 bg-slate-900/60 px-6 py-5 shadow-lg transition">
+            <header class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="text-xs uppercase tracking-[0.3em] text-slate-400">Naviera</p>
+                    <h3 class="text-lg font-semibold text-white" data-name></h3>
+                </div>
+                <span data-status-pill class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em]"></span>
+            </header>
+            <dl class="mt-4 grid gap-y-2 text-sm text-slate-200/90" data-details></dl>
+            <p class="mt-4 text-xs text-slate-400/90" data-updated></p>
+        </article>
+    </template>
+
+    <script>
+        const shippingLines = [
+            {
+                id: 'msc',
+                name: 'MSC Perú',
+                mockKey: 'MSC',
+                endpoint: 'https://api.example.com/msc/containers/{container}',
+            },
+            {
+                id: 'maersk',
+                name: 'Maersk Perú',
+                mockKey: 'MAERSK',
+                endpoint: 'https://api.example.com/maersk/containers/{container}',
+            },
+            {
+                id: 'cma',
+                name: 'CMA CGM',
+                mockKey: 'CMA',
+                endpoint: 'https://api.example.com/cma/containers/{container}',
+            },
+            {
+                id: 'hapag',
+                name: 'Hapag-Lloyd',
+                mockKey: 'HAPAG',
+                endpoint: 'https://api.example.com/hapag/containers/{container}',
+            },
+            {
+                id: 'cosco',
+                name: 'COSCO Shipping Lines',
+                mockKey: 'COSCO',
+                endpoint: 'https://api.example.com/cosco/containers/{container}',
+            },
+            {
+                id: 'evergreen',
+                name: 'Evergreen Marine',
+                mockKey: 'EVERGREEN',
+                endpoint: 'https://api.example.com/evergreen/containers/{container}',
+            },
+            {
+                id: 'seaboard',
+                name: 'Seaboard Marine',
+                mockKey: 'SEABOARD',
+                endpoint: 'https://api.example.com/seaboard/containers/{container}',
+            },
+            {
+                id: 'hamburg',
+                name: 'Hamburg Süd',
+                mockKey: 'HAMBURG',
+                endpoint: 'https://api.example.com/hamburg/containers/{container}',
+            },
+        ];
+
+        const mockResponses = {
+            MSC: {
+                MSKU1234567: {
+                    eta: '2024-06-12',
+                    vessel: 'MSC ANDES IV',
+                    status: 'En tránsito a Callao',
+                    lastKnownLocation: 'Guayaquil, EC',
+                    updatedAt: '2024-06-03T09:45:00-05:00',
+                },
+            },
+            MAERSK: {
+                MSKU1234567: {
+                    eta: '2024-06-14',
+                    vessel: 'MAERSK AMAZON',
+                    status: 'Descargando en Callao',
+                    lastKnownLocation: 'Callao, PE',
+                    updatedAt: '2024-06-05T12:10:00-05:00',
+                },
+            },
+            CMA: {
+                MSKU1234567: {
+                    eta: '2024-06-16',
+                    vessel: 'CMA CGM HUASCARAN',
+                    status: 'Programado',
+                    lastKnownLocation: 'Posición estimada Pacífico Sur',
+                    updatedAt: '2024-06-04T08:25:00-05:00',
+                },
+            },
+            HAPAG: {
+                MSKU1234567: {
+                    eta: '2024-06-13',
+                    vessel: 'MV HUASCAR',
+                    status: 'En recalada',
+                    lastKnownLocation: 'Atraque 3 Callao',
+                    updatedAt: '2024-06-05T06:10:00-05:00',
+                },
+            },
+            COSCO: {
+                MSKU1234567: {
+                    eta: '2024-06-17',
+                    vessel: 'COSCO CALLAO',
+                    status: 'Zarpó de Buenaventura',
+                    lastKnownLocation: 'Buenaventura, CO',
+                    updatedAt: '2024-06-02T19:40:00-05:00',
+                },
+            },
+            EVERGREEN: {
+                MSKU1234567: {
+                    eta: '2024-06-18',
+                    vessel: 'EVER LIMA',
+                    status: 'Cargando en Manzanillo',
+                    lastKnownLocation: 'Manzanillo, MX',
+                    updatedAt: '2024-06-01T22:00:00-05:00',
+                },
+            },
+            SEABOARD: {
+                MSKU1234567: {
+                    eta: '2024-06-19',
+                    vessel: 'SEABOARD PACIFIC',
+                    status: 'En tránsito',
+                    lastKnownLocation: 'Canal de Panamá',
+                    updatedAt: '2024-06-03T11:00:00-05:00',
+                },
+            },
+            HAMBURG: {
+                MSKU1234567: {
+                    eta: '2024-06-15',
+                    vessel: 'HAMBURG SUN',
+                    status: 'En ruta a Callao',
+                    lastKnownLocation: 'Paita, PE',
+                    updatedAt: '2024-06-04T14:15:00-05:00',
+                },
+            },
+        };
+
+        const form = document.getElementById('trackerForm');
+        const containerInput = document.getElementById('containerNumber');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const formFeedback = document.getElementById('formFeedback');
+        const toggleMock = document.getElementById('toggleMock');
+        const cardTemplate = document.getElementById('resultCardTemplate');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            hideFeedback();
+
+            const containerNumber = containerInput.value.trim().toUpperCase();
+            const isValid = /^[A-Z]{4}\d{7}$/.test(containerNumber);
+
+            if (!isValid) {
+                showFeedback('El número de contenedor debe cumplir el formato ISO: cuatro letras seguidas de siete dígitos.');
+                return;
+            }
+
+            renderInitialCards();
+
+            try {
+                const useMock = toggleMock.checked;
+                const responses = await consultShippingLines(containerNumber, useMock);
+                updateResultCards(responses);
+            } catch (error) {
+                console.error(error);
+                showFeedback('Ocurrió un error al consultar las navieras. Intenta nuevamente.');
+            }
+        });
+
+        function renderInitialCards() {
+            resultsContainer.innerHTML = '';
+            shippingLines.forEach((line) => {
+                const card = cardTemplate.content.cloneNode(true);
+                const nameEl = card.querySelector('[data-name]');
+                const statusPill = card.querySelector('[data-status-pill]');
+                const detailsEl = card.querySelector('[data-details]');
+                const updatedEl = card.querySelector('[data-updated]');
+
+                nameEl.textContent = line.name;
+                statusPill.textContent = 'Consultando';
+                statusPill.className = 'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] bg-slate-700 text-slate-200';
+                detailsEl.innerHTML = '<p class="text-slate-300/80">Esperando respuesta...</p>';
+                updatedEl.textContent = '—';
+
+                resultsContainer.appendChild(card);
+            });
+        }
+
+        async function consultShippingLines(containerNumber, useMock) {
+            const requests = shippingLines.map(async (line) => {
+                if (useMock) {
+                    return simulateMockResponse(line, containerNumber);
+                }
+
+                return fetchRealEndpoint(line, containerNumber);
+            });
+
+            const results = await Promise.all(requests);
+            return results;
+        }
+
+        async function simulateMockResponse(line, containerNumber) {
+            await waitFor(Math.random() * 800 + 300);
+            const mockData = mockResponses[line.mockKey]?.[containerNumber];
+
+            if (!mockData) {
+                return {
+                    line,
+                    success: false,
+                    error: 'Contenedor no encontrado en datos demostrativos',
+                };
+            }
+
+            return {
+                line,
+                success: true,
+                data: mockData,
+            };
+        }
+
+        async function fetchRealEndpoint(line, containerNumber) {
+            const url = line.endpoint.replace('{container}', encodeURIComponent(containerNumber));
+
+            try {
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const payload = await response.json();
+
+                return {
+                    line,
+                    success: true,
+                    data: normalizeApiResponse(payload),
+                };
+            } catch (error) {
+                return {
+                    line,
+                    success: false,
+                    error: error.message || 'Error desconocido',
+                };
+            }
+        }
+
+        function normalizeApiResponse(payload) {
+            return {
+                eta: payload?.eta || 'Sin dato',
+                vessel: payload?.vessel || payload?.shipName || 'No indicado',
+                status: payload?.status || payload?.trackingStatus || 'Sin estado',
+                lastKnownLocation: payload?.lastKnownLocation || payload?.location || '—',
+                updatedAt: payload?.updatedAt || payload?.timestamp || new Date().toISOString(),
+            };
+        }
+
+        function updateResultCards(responses) {
+            const cards = Array.from(resultsContainer.children);
+
+            responses.forEach((result, index) => {
+                const card = cards[index];
+                if (!card) return;
+
+                const statusPill = card.querySelector('[data-status-pill]');
+                const detailsEl = card.querySelector('[data-details]');
+                const updatedEl = card.querySelector('[data-updated]');
+
+                if (result.success) {
+                    statusPill.textContent = 'Completado';
+                    statusPill.className = 'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] bg-emerald-500/20 text-emerald-200 border border-emerald-400/40';
+                    detailsEl.innerHTML = `
+                        <div class="grid sm:grid-cols-2 gap-2">
+                            <div>
+                                <dt class="text-xs uppercase tracking-[0.3em] text-sky-300/80">Estado</dt>
+                                <dd class="text-base text-white">${result.data.status}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs uppercase tracking-[0.3em] text-sky-300/80">ETA</dt>
+                                <dd class="text-base text-white">${formatDate(result.data.eta)}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs uppercase tracking-[0.3em] text-sky-300/80">Buque</dt>
+                                <dd class="text-base text-white">${result.data.vessel}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs uppercase tracking-[0.3em] text-sky-300/80">Último reporte</dt>
+                                <dd class="text-base text-white">${result.data.lastKnownLocation}</dd>
+                            </div>
+                        </div>`;
+                    updatedEl.textContent = `Actualizado: ${formatDateTime(result.data.updatedAt)}`;
+                } else {
+                    statusPill.textContent = 'Error';
+                    statusPill.className = 'rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] bg-rose-500/20 text-rose-200 border border-rose-400/40';
+                    detailsEl.innerHTML = `<p class="text-rose-200">${result.error}</p>`;
+                    updatedEl.textContent = 'No se recibió respuesta.';
+                }
+            });
+        }
+
+        function formatDate(value) {
+            if (!value || value === 'Sin dato') return 'Sin dato';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleDateString('es-PE', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function formatDateTime(value) {
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return value || 'Sin dato';
+            return date.toLocaleString('es-PE', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        }
+
+        function waitFor(ms) {
+            return new Promise((resolve) => setTimeout(resolve, ms));
+        }
+
+        function showFeedback(message) {
+            formFeedback.textContent = message;
+            formFeedback.classList.remove('hidden');
+        }
+
+        function hideFeedback() {
+            formFeedback.classList.add('hidden');
+            formFeedback.textContent = '';
+        }
+    </script>
+</body>
+</html>
