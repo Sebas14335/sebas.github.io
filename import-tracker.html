@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tablero dinámico de importaciones</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+
+        body {
+            font-family: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at 10% 20%, rgba(12, 74, 110, 0.9) 0%, rgba(15, 23, 42, 0.95) 45%, #020617 95%);
+            min-height: 100vh;
+        }
+
+        .glass {
+            background: rgba(15, 23, 42, 0.62);
+            backdrop-filter: blur(18px);
+        }
+
+        .floating {
+            animation: float 5s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .water {
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+        .water::before,
+        .water::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            opacity: 0.35;
+            background: repeating-linear-gradient(135deg, rgba(56, 189, 248, 0.25) 0 12px, transparent 12px 24px);
+            transform: translateX(var(--wave-offset, 0));
+            animation: wave 12s linear infinite;
+        }
+
+        .water::after {
+            opacity: 0.2;
+            animation-duration: 18s;
+        }
+
+        @keyframes wave {
+            from { transform: translateX(0); }
+            to { transform: translateX(-200px); }
+        }
+
+        .ship-track {
+            height: 54px;
+            position: relative;
+        }
+
+        .ship-track::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 4px;
+            background: linear-gradient(90deg, rgba(148, 163, 184, 0.4) 0%, rgba(96, 165, 250, 0.9) 100%);
+            border-radius: 9999px;
+        }
+
+        .ship {
+            --ship-progress: 0%;
+            position: absolute;
+            top: 50%;
+            transform: translateY(calc(-50% - 6px));
+            transition: left 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            left: var(--ship-progress);
+        }
+
+        .ship svg {
+            filter: drop-shadow(0 6px 12px rgba(56, 189, 248, 0.35));
+        }
+
+        table tbody tr {
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        table tbody tr:hover {
+            transform: translateY(-1px);
+            background: rgba(51, 65, 85, 0.25);
+        }
+    </style>
+</head>
+<body class="text-slate-100">
+    <div class="relative">
+        <div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1528191710844-00c4f8a63ec0?auto=format&fit=crop&w=1400&q=80')] opacity-10 mix-blend-screen"></div>
+        <div class="relative">
+            <header class="max-w-7xl mx-auto px-6 pt-10 pb-16">
+                <div class="glass border border-sky-100/10 rounded-3xl px-8 py-10 shadow-[0_50px_100px_-20px_rgba(15,23,42,0.6)]">
+                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-10">
+                        <div class="space-y-5 max-w-3xl">
+                            <p class="inline-flex items-center gap-3 text-sky-200/90 text-xs uppercase tracking-[0.4em]">
+                                <span class="h-px w-12 bg-sky-300/70"></span>
+                                Seguimiento en vivo
+                            </p>
+                            <h1 class="text-4xl lg:text-5xl font-extrabold leading-tight text-white">
+                                Tablero inteligente de importaciones
+                            </h1>
+                            <p class="text-lg text-slate-200/80 max-w-2xl">
+                                Conecta la pestaña <strong>"base"</strong> de tu archivo de Excel en SharePoint y obtén una vista viva del estado de tus pedidos.
+                                Filtra por código de material, proveedor y responsable, y visualiza el avance con barcos animados que se acercan a puerto conforme llega tu carga.
+                            </p>
+                            <div class="flex flex-wrap gap-4 text-sm text-slate-300/80">
+                                <div class="px-4 py-2 rounded-full bg-sky-500/20 border border-sky-400/30">Actualización automática</div>
+                                <div class="px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-400/30">Filtros inteligentes</div>
+                                <div class="px-4 py-2 rounded-full bg-indigo-500/20 border border-indigo-400/30">Indicadores visuales</div>
+                            </div>
+                        </div>
+                        <div class="relative w-full max-w-xs">
+                            <div class="glass border border-white/10 rounded-3xl px-6 py-8 water">
+                                <div class="ship-track mt-4">
+                                    <div class="ship" style="--ship-progress: 65%">
+                                        <svg width="88" height="52" viewBox="0 0 88 52" fill="none" xmlns="http://www.w3.org/2000/svg" class="floating">
+                                            <path d="M8 30L0 20H16L24 0H64L72 20H88L80 30C74 36 64 44 44 44C24 44 14 36 8 30Z" fill="#38bdf8"/>
+                                            <path d="M32 8H56V16H32V8Z" fill="#f8fafc"/>
+                                            <path d="M20 20H68L72 28C72 28 63 36 44 36C25 36 16 28 16 28L20 20Z" fill="#0f172a"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <p class="mt-10 text-sm text-slate-200/80 text-center">Visual de llegada estimada</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="max-w-7xl mx-auto px-6 pb-24 space-y-10">
+                <section class="glass border border-white/10 rounded-3xl px-6 lg:px-10 py-8 lg:py-10 shadow-xl space-y-8">
+                    <header class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                        <div>
+                            <h2 class="text-2xl font-semibold text-white">1. Configura la conexión con SharePoint</h2>
+                            <p class="mt-2 text-sm text-slate-300/80 max-w-2xl">
+                                Genera un token OAuth 2.0 con permisos de Microsoft Graph para leer tu archivo y reemplaza los valores en el código.<br class="hidden md:block" />
+                                Utilizamos <code class="px-1 py-0.5 bg-slate-900/70 rounded text-emerald-300">/workbook/worksheets('base')/usedRange</code> para consumir la pestaña <em>base</em>.
+                            </p>
+                        </div>
+                        <div class="flex flex-wrap gap-3 text-xs uppercase tracking-[0.3em] text-slate-400">
+                            <span class="px-4 py-2 rounded-full border border-sky-500/40 bg-sky-500/10">Refresco cada 5 minutos</span>
+                            <span class="px-4 py-2 rounded-full border border-emerald-500/40 bg-emerald-500/10">Sin backend extra</span>
+                        </div>
+                    </header>
+
+                    <div class="grid lg:grid-cols-4 gap-6">
+                        <div class="lg:col-span-3 grid sm:grid-cols-3 gap-4">
+                            <label class="block text-sm">
+                                <span class="text-slate-300/80 uppercase tracking-[0.3em] text-xs">Código material</span>
+                                <select id="filterCodigo" class="mt-2 w-full bg-slate-950/60 border border-sky-500/40 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                                    <option value="">Todos</option>
+                                </select>
+                            </label>
+                            <label class="block text-sm">
+                                <span class="text-slate-300/80 uppercase tracking-[0.3em] text-xs">Proveedor</span>
+                                <select id="filterProveedor" class="mt-2 w-full bg-slate-950/60 border border-sky-500/40 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                                    <option value="">Todos</option>
+                                </select>
+                            </label>
+                            <label class="block text-sm">
+                                <span class="text-slate-300/80 uppercase tracking-[0.3em] text-xs">Responsable</span>
+                                <select id="filterResponsable" class="mt-2 w-full bg-slate-950/60 border border-sky-500/40 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-sky-400">
+                                    <option value="">Todos</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="flex flex-col gap-4">
+                            <button id="refreshBtn" class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-400/90 text-slate-900 font-semibold py-3 px-4 hover:bg-emerald-400 transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-300 focus:ring-offset-slate-900">
+                                <span class="inline-flex w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                                Actualizar ahora
+                            </button>
+                            <p class="text-xs text-slate-400/80 leading-relaxed">
+                                La tabla se refresca automáticamente; el botón fuerza la actualización cuando cargaste nuevos pedidos en la hoja.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="grid lg:grid-cols-3 gap-6">
+                    <article class="glass border border-white/10 rounded-3xl px-6 py-6 shadow-lg space-y-3">
+                        <p class="text-sm uppercase tracking-[0.3em] text-sky-200/90">Pedidos en tránsito</p>
+                        <p class="text-4xl font-bold text-white" id="metricTransito">0</p>
+                        <p class="text-sm text-slate-400/80">Importaciones con progreso entre 10% y 90%.</p>
+                    </article>
+                    <article class="glass border border-white/10 rounded-3xl px-6 py-6 shadow-lg space-y-3">
+                        <p class="text-sm uppercase tracking-[0.3em] text-emerald-200/90">Por llegar</p>
+                        <p class="text-4xl font-bold text-white" id="metricPorLlegar">0</p>
+                        <p class="text-sm text-slate-400/80">Pedidos con ETA en los próximos 10 días.</p>
+                    </article>
+                    <article class="glass border border-white/10 rounded-3xl px-6 py-6 shadow-lg space-y-3">
+                        <p class="text-sm uppercase tracking-[0.3em] text-fuchsia-200/90">Retrasos</p>
+                        <p class="text-4xl font-bold text-white" id="metricRetrasos">0</p>
+                        <p class="text-sm text-slate-400/80">Pedidos atrasados respecto a la fecha comprometida.</p>
+                    </article>
+                </section>
+
+                <section class="glass border border-white/10 rounded-3xl px-6 lg:px-10 py-10 shadow-xl space-y-10">
+                    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                        <div>
+                            <h2 class="text-2xl font-semibold text-white">2. Tablero de pedidos</h2>
+                            <p class="mt-2 text-sm text-slate-300/80">La animación del barco indica el avance estimado del pedido. La barra cambia de color cuando el progreso supera 75%.</p>
+                        </div>
+                        <div class="text-sm text-slate-400/80">
+                            Última actualización: <span id="lastUpdated">-</span>
+                        </div>
+                    </header>
+
+                    <div class="overflow-hidden rounded-3xl border border-white/10">
+                        <table class="min-w-full divide-y divide-white/10 text-left">
+                            <thead class="bg-slate-900/60">
+                                <tr class="text-xs uppercase tracking-[0.3em] text-slate-300/80">
+                                    <th class="px-6 py-4">Código</th>
+                                    <th class="px-6 py-4">Descripción</th>
+                                    <th class="px-6 py-4">Proveedor</th>
+                                    <th class="px-6 py-4">Responsable</th>
+                                    <th class="px-6 py-4">ETA</th>
+                                    <th class="px-6 py-4">Estado</th>
+                                    <th class="px-6 py-4">Avance</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody" class="divide-y divide-white/5"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="glass border border-white/10 rounded-3xl px-6 lg:px-10 py-10 shadow-xl">
+                    <h2 class="text-2xl font-semibold text-white mb-4">3. Guía rápida</h2>
+                    <ol class="list-decimal list-inside space-y-3 text-sm text-slate-300/80">
+                        <li><strong>Obtén el ID del archivo</strong>: en SharePoint abre el Excel, haz clic en <em>Detalles</em> y copia el identificador del elemento y del drive.</li>
+                        <li><strong>Consigue un token</strong>: registra una app en Azure AD con permisos <code>Files.Read</code> y <code>Sites.Read.All</code>. Usa MSAL para generar el token en tu front o mediante un pequeño backend.</li>
+                        <li><strong>Actualiza las constantes</strong> <code>GRAPH_BASE_URL</code>, <code>DRIVE_ID</code>, <code>ITEM_ID</code> y suministra <code>ACCESS_TOKEN</code> de forma segura (idealmente con Azure Functions o API propia).</li>
+                        <li><strong>Columnas adaptables</strong>: el script busca nombres comunes (ej. «Código material», «Proveedor», «Responsable», «ETA», «Avance»). Si tu hoja usa otros nombres, ajusta <code>columnAliases</code>.</li>
+                    </ol>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // === CONFIGURACIÓN ===
+        const GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0";
+        const DRIVE_ID = "COLOCA_AQUÍ_EL_ID_DEL_DRIVE";
+        const ITEM_ID = "COLOCA_AQUÍ_EL_ID_DEL_ARCHIVO";
+        const ACCESS_TOKEN = "PEGA_AQUÍ_EL_TOKEN_DE_ACCESO"; // Gestiona el token de forma segura
+        const WORKSHEET_NAME = "base";
+        const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+
+        // Aliases para encontrar columnas aunque cambie el encabezado
+        const columnAliases = {
+            codigo: ["codigo material", "código material", "codigo", "material", "cod_material"],
+            descripcion: ["descripcion", "descripción", "detalle", "producto"],
+            proveedor: ["proveedor", "supplier", "proveedor principal"],
+            responsable: ["responsable", "owner", "usuario", "comprador"],
+            eta: ["eta", "fecha llegada", "fecha eta", "fecha de llegada", "fecha arribo"],
+            estado: ["estado", "status", "situacion", "situación"],
+            avance: ["avance", "progreso", "% avance", "porcentaje", "progress"],
+            fechaSalida: ["fecha salida", "fecha embarque", "origen", "fecha despacho"],
+            fechaPedido: ["fecha pedido", "fecha orden", "fecha oc"],
+        };
+
+        const state = {
+            rows: [],
+            filteredRows: [],
+            headers: [],
+        };
+
+        const filterElements = {
+            codigo: document.getElementById("filterCodigo"),
+            proveedor: document.getElementById("filterProveedor"),
+            responsable: document.getElementById("filterResponsable"),
+        };
+
+        const metricsElements = {
+            transito: document.getElementById("metricTransito"),
+            porLlegar: document.getElementById("metricPorLlegar"),
+            retrasos: document.getElementById("metricRetrasos"),
+        };
+
+        document.getElementById("refreshBtn").addEventListener("click", () => loadData(true));
+        Object.values(filterElements).forEach(select => select.addEventListener("change", applyFilters));
+
+        async function loadData(triggeredManually = false) {
+            toggleLoading(true, triggeredManually);
+
+            try {
+                const url = `${GRAPH_BASE_URL}/drives/${DRIVE_ID}/items/${ITEM_ID}/workbook/worksheets('${encodeURIComponent(WORKSHEET_NAME)}')/usedRange?$format=application/json`;
+                const response = await fetch(url, {
+                    headers: {
+                        Authorization: `Bearer ${ACCESS_TOKEN}`,
+                        Accept: "application/json",
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error al consultar Graph: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const values = data?.values || [];
+
+                if (!values.length) {
+                    throw new Error("La hoja 'base' no devolvió información.");
+                }
+
+                state.headers = values[0].map(header => header?.toString().trim() ?? "");
+                state.rows = values.slice(1)
+                    .filter(row => row.some(cell => cell !== null && cell !== ""))
+                    .map(row => mapRowToObject(row));
+
+                populateFilters();
+                applyFilters();
+                updateLastUpdated();
+            } catch (error) {
+                console.error(error);
+                renderError(error.message);
+            } finally {
+                toggleLoading(false, triggeredManually);
+            }
+        }
+
+        function mapRowToObject(row) {
+            const obj = {};
+            state.headers.forEach((header, index) => {
+                obj[header.toLowerCase()] = row[index];
+            });
+
+            const getValue = aliases => {
+                const header = state.headers.find(h => aliases.includes(h.toLowerCase()));
+                return header ? obj[header.toLowerCase()] : undefined;
+            };
+
+            const etaRaw = getValue(columnAliases.eta);
+            const fechaSalidaRaw = getValue(columnAliases.fechaSalida);
+            const avanceRaw = getValue(columnAliases.avance);
+
+            return {
+                original: obj,
+                codigo: getValue(columnAliases.codigo) ?? "Sin código",
+                descripcion: getValue(columnAliases.descripcion) ?? "-",
+                proveedor: getValue(columnAliases.proveedor) ?? "-",
+                responsable: getValue(columnAliases.responsable) ?? "-",
+                eta: parseDate(etaRaw),
+                etaDisplay: formatDate(etaRaw),
+                estado: getValue(columnAliases.estado) ?? "Sin estado",
+                avance: parseProgress(avanceRaw, fechaSalidaRaw, etaRaw),
+            };
+        }
+
+        function parseDate(value) {
+            if (!value) return null;
+            const parsed = typeof value === "number" ? excelDateToJSDate(value) : new Date(value);
+            return isNaN(parsed?.getTime?.()) ? null : parsed;
+        }
+
+        function formatDate(value) {
+            const date = parseDate(value);
+            if (!date) return "Sin ETA";
+            return date.toLocaleDateString("es-PE", { year: "numeric", month: "short", day: "numeric" });
+        }
+
+        function parseProgress(avanceRaw, fechaSalidaRaw, etaRaw) {
+            if (typeof avanceRaw === "number") {
+                return Math.max(0, Math.min(100, avanceRaw));
+            }
+
+            const numericString = typeof avanceRaw === "string" && avanceRaw.match(/\d+/)?.[0];
+            if (numericString) {
+                return Math.max(0, Math.min(100, Number(numericString)));
+            }
+
+            const eta = parseDate(etaRaw);
+            const salida = parseDate(fechaSalidaRaw);
+            if (eta && salida) {
+                const total = eta - salida;
+                const transcurrido = Date.now() - salida.getTime();
+                if (total > 0) {
+                    return Math.max(5, Math.min(100, Math.round((transcurrido / total) * 100)));
+                }
+            }
+
+            return 0;
+        }
+
+        function excelDateToJSDate(serial) {
+            // Fecha base Excel 1900
+            const epoch = new Date(Date.UTC(1899, 11, 30));
+            const milliseconds = serial * 86400000;
+            return new Date(epoch.getTime() + milliseconds);
+        }
+
+        function populateFilters() {
+            const uniqueValues = (key) => Array.from(new Set(state.rows.map(row => row[key]).filter(Boolean))).sort();
+
+            const options = {
+                codigo: uniqueValues("codigo"),
+                proveedor: uniqueValues("proveedor"),
+                responsable: uniqueValues("responsable"),
+            };
+
+            Object.entries(options).forEach(([key, values]) => {
+                const select = filterElements[key];
+                const current = select.value;
+                select.innerHTML = '<option value="">Todos</option>' + values.map(value => `<option value="${value}">${value}</option>`).join("");
+                if (values.includes(current)) {
+                    select.value = current;
+                }
+            });
+        }
+
+        function applyFilters() {
+            state.filteredRows = state.rows.filter(row => {
+                return (!filterElements.codigo.value || row.codigo === filterElements.codigo.value)
+                    && (!filterElements.proveedor.value || row.proveedor === filterElements.proveedor.value)
+                    && (!filterElements.responsable.value || row.responsable === filterElements.responsable.value);
+            });
+
+            renderTable();
+            updateMetrics();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById("tableBody");
+            tbody.innerHTML = "";
+
+            if (!state.filteredRows.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-slate-400">No se encontraron pedidos con los filtros actuales.</td></tr>';
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+
+            state.filteredRows.forEach(row => {
+                const tr = document.createElement("tr");
+                const progressColor = row.avance >= 75 ? "bg-emerald-500" : row.avance >= 40 ? "bg-sky-500" : "bg-amber-400";
+                const progressPercent = `${Math.min(100, Math.max(0, row.avance))}%`;
+
+                tr.innerHTML = `
+                    <td class="px-6 py-5 text-sm font-semibold text-white">${row.codigo}</td>
+                    <td class="px-6 py-5 text-sm text-slate-300/90">${row.descripcion}</td>
+                    <td class="px-6 py-5 text-sm text-slate-300/80">${row.proveedor}</td>
+                    <td class="px-6 py-5 text-sm text-slate-300/80">${row.responsable}</td>
+                    <td class="px-6 py-5 text-sm text-slate-200/90">${row.etaDisplay}</td>
+                    <td class="px-6 py-5 text-sm">
+                        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/70 border border-white/10">
+                            <span class="w-2 h-2 rounded-full ${row.avance >= 90 ? 'bg-emerald-400' : row.avance >= 40 ? 'bg-sky-400' : 'bg-amber-400'}"></span>
+                            ${row.estado}
+                        </span>
+                    </td>
+                    <td class="px-6 py-5">
+                        <div class="relative">
+                            <div class="h-14 rounded-2xl bg-slate-900/80 border border-white/5 overflow-hidden">
+                                <div class="h-full ${progressColor}" style="width: ${progressPercent}; opacity: 0.25;"></div>
+                                <div class="ship" style="--ship-progress: ${progressPercent};">
+                                    <svg width="70" height="42" viewBox="0 0 88 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M8 30L0 20H16L24 0H64L72 20H88L80 30C74 36 64 44 44 44C24 44 14 36 8 30Z" fill="#38bdf8"/>
+                                        <path d="M32 8H56V16H32V8Z" fill="#f8fafc"/>
+                                        <path d="M20 20H68L72 28C72 28 63 36 44 36C25 36 16 28 16 28L20 20Z" fill="#0f172a"/>
+                                    </svg>
+                                </div>
+                            </div>
+                            <p class="mt-2 text-xs text-slate-300/70 text-right font-medium">${progressPercent}</p>
+                        </div>
+                    </td>
+                `;
+
+                fragment.appendChild(tr);
+            });
+
+            tbody.appendChild(fragment);
+        }
+
+        function updateMetrics() {
+            const now = new Date();
+            const diezDias = 10 * 24 * 60 * 60 * 1000;
+
+            const transito = state.filteredRows.filter(row => row.avance > 10 && row.avance < 90).length;
+            const porLlegar = state.filteredRows.filter(row => row.eta && (row.eta - now) <= diezDias && (row.eta - now) >= 0).length;
+            const retrasos = state.filteredRows.filter(row => row.eta && row.eta < now && row.avance < 100).length;
+
+            metricsElements.transito.textContent = transito;
+            metricsElements.porLlegar.textContent = porLlegar;
+            metricsElements.retrasos.textContent = retrasos;
+        }
+
+        function updateLastUpdated() {
+            document.getElementById("lastUpdated").textContent = new Date().toLocaleString("es-PE", {
+                dateStyle: "medium",
+                timeStyle: "short",
+            });
+        }
+
+        function toggleLoading(isLoading, triggeredManually) {
+            const btn = document.getElementById("refreshBtn");
+            if (!btn) return;
+
+            if (isLoading) {
+                btn.disabled = true;
+                btn.innerHTML = `
+                    <svg class="animate-spin h-4 w-4 text-slate-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                    Actualizando...
+                `;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `
+                    <span class="inline-flex w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                    ${triggeredManually ? 'Actualizado' : 'Actualizar ahora'}
+                `;
+                if (triggeredManually) {
+                    setTimeout(() => btn.innerHTML = `
+                        <span class="inline-flex w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                        Actualizar ahora
+                    `, 2500);
+                }
+            }
+        }
+
+        function renderError(message) {
+            const tbody = document.getElementById("tableBody");
+            tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-12 text-center">
+                <div class="max-w-xl mx-auto space-y-3">
+                    <p class="text-base font-semibold text-rose-200">No pudimos obtener la información</p>
+                    <p class="text-sm text-slate-400/80">${message}</p>
+                    <p class="text-xs text-slate-500/70">Verifica el token, permisos y que la hoja <strong>base</strong> tenga datos.</p>
+                </div>
+            </td></tr>`;
+        }
+
+        loadData();
+        setInterval(loadData, REFRESH_INTERVAL_MS);
+    </script>
+</body>
+</html>
